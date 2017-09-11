@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<!-- Required meta tags -->
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+	<!-- Bootstrap CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+</head>
+<body>
+<h1>Rabo -> Ynab!</h1>
+<form onsubmit="return false;">
+	<div class="form-group">
+		<label for="input">Rabobank transacties (txt formaat)</label>
+		<textarea class="form-control" id="input" rows="3" placeholder="Plak hier de Rabobank gexporteerde data (TXT formaat)">"NL44RABO0123456789","EUR","20170810","D","50.00","","","20170810","ba","","BEVERWIJK","Betaalautomaat XX","","","","","","",""</textarea>
+	</div>
+	<button class="btn btn-primary" onclick="convert();">Converteer naar CSV</button>
+</form>
+<hr />
+<h2 id="results">Resultaten</h2>
+
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/4.3.6/papaparse.min.js" integrity="sha256-5nI7WwoRuBEpzsi7i4B4FoxptQfKFKKQXWRiLkPaGzA=" crossorigin="anonymous"></script>
+
+<script>
+	function getPayee(line){
+		if (line[8] === 'ba' ||
+				line[8] === 'ga') {
+			return [line[9], line[10]].filter(function(val) { return val !== ''; }).join(' - ');
+		}
+		if (line[8] === 'tb' ||
+				line[8] === 'ei' ||
+				line[8] === 'cb' ||
+				line[8] === 'bg' ||
+				line[8] === 'db') {
+			return [line[5], line[6]].filter(function(val) { return val !== ''; }).join(' - ');
+		}
+
+		return [line[5], line[10]].filter(function(val) { return val !== ''; }).join(' - ');
+	}
+
+	function convert() {
+		var csvData = {};
+		Papa.parse($('#input').val())
+			.data.forEach(function(line){
+				csvData[line[0]] = csvData[line[0]] || [];
+				csvData[line[0]].push({
+					date: `${line[7].substr(6, 2)}/${line[7].substr(4, 2)}/${line[7].substr(0, 4)}`,
+					payee: getPayee(line),
+					category: '',
+					memo: line.slice(10,16).filter(function(val) { return val !== ''; }).join(' '),
+					outflow:  line[3] === 'D' ? line[4] : '',
+					inflow: line[3] === 'C' ? line[4] : '',
+				});
+			});
+		for (var key in csvData) {
+			if (csvData.hasOwnProperty(key)) {
+				// do stuff
+				var accountNumber = key;
+				var transactions = csvData[key];
+				var $results = $('#results');
+				var results = `<div class="card">
+					<div class="card-body">
+						<h4 class="card-title">Rekening: ${accountNumber}</h4>
+						<input type="hidden" id="output_${accountNumber}" rows="2" value="${Papa.unparse(transactions)}" />
+						<button class="btn btn-default" onclick="download('ynab_${accountNumber}.csv', '#output_${accountNumber}')">Download naar CSV</button>
+					</div>
+				</div>`;
+				$results.find(`#output_${accountNumber}`).remove();
+				$results.after(results);
+			}
+		}
+		return false;
+	}
+
+	function download(filename, sourceElement) {
+		var element = document.createElement('a');
+		element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent($(sourceElement).val()));
+		element.setAttribute('download', filename);
+
+		element.style.display = 'none';
+		document.body.appendChild(element);
+
+		element.click();
+
+		document.body.removeChild(element);
+	}
+</script>
+</body>
+</html>
+
