@@ -46,6 +46,9 @@
 		var csvData = {};
 		Papa.parse($('#input').val())
 			.data.forEach(function(line){
+				if (line.length === 0) {
+					return;
+				}
 				csvData[line[0]] = csvData[line[0]] || [];
 				csvData[line[0]].push({
 					date: `${line[7].substr(6, 2)}/${line[7].substr(4, 2)}/${line[7].substr(0, 4)}`,
